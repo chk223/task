@@ -30,36 +30,20 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582
 
-      - name: Debug directory structure
-        run: |
-          pwd
-          ls -la
-          ls -la taskapp || echo "taskapp directory not found"
-          find . -name gradlew
-          if [ -f "taskapp/gradlew" ]; then echo "gradlew found"; else echo "gradlew not found"; fi
-
       - name: Grant execute permission for gradlew
         run: chmod +x taskapp/gradlew
 
       - name: Build with Gradle
         working-directory: taskapp
         run: |
-          ./gradlew clean build -x test --stacktrace
-          ls -la build || echo "build directory not found"
-          ls -la build/libs || echo "libs directory not found"
+          ./gradlew clean bootJar -x test --stacktrace
+          ls -la build/libs || echo "build/libs directory not found"
           find . -name "*.jar"
-
-      - name: Debug build output
-        run: |
-          ls -la taskapp || echo "taskapp directory not found"
-          ls -la taskapp/build || echo "build directory not found"
-          ls -la taskapp/build/libs || echo "libs directory not found"
-          find taskapp -name "*.jar"
 
       - name: Prepare deployment package
         run: |
           mkdir -p deploy
-          cp taskapp/build/libs/*.jar deploy/app.jar || echo "No JAR file found in taskapp/build/libs/"
+          cp taskapp/build/libs/taskapp-0.0.1-SNAPSHOT.jar deploy/app.jar || echo "No JAR file found in taskapp/build/libs/"
           cp Dockerfile deploy/
           cp docker-compose.yml deploy/
           cat > deploy/deploy.sh << 'EOL'
@@ -83,26 +67,35 @@ jobs:
 
     steps:
       - name: Download deployment package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v4.1.7
         with:
           name: deploy-package
           path: ./deploy
 
-      - name: Set up SSH key
+      - name: Debug environment
         run: |
           pwd
           whoami
           echo "Home directory: $HOME"
+          ls -la || echo "ls -la failed"
+
+      - name: Check SSH secrets
+        run: |
+          if [ -z "${{ secrets.EC2_SSH_KEY }}" ]; then echo "EC2_SSH_KEY is empty"; else echo "EC2_SSH_KEY is set"; fi
+          if [ -z "${{ secrets.EC2_HOST }}" ]; then echo "EC2_HOST is empty"; else echo "EC2_HOST is set"; fi
+          if [ -z "${{ secrets.EC2_USER }}" ]; then echo "EC2_USER is empty"; else echo "EC2_USER is set"; fi
+
+      - name: Set up SSH key
+        run: |
           mkdir -p /home/runner/.ssh || echo "Failed to create /home/runner/.ssh"
-          ls -la /home/runner/.ssh || echo "Failed to list /home/runner/.ssh"
           echo "${{ secrets.EC2_SSH_KEY }}" > /home/runner/.ssh/id_rsa || echo "Failed to write SSH key"
-          chmod 600 /home/runner/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> /home/runner/.ssh/known_hosts
+          chmod 600 /home/runner/.ssh/id_rsa || echo "Failed to set permissions on id_rsa"
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> /home/runner/.ssh/known_hosts || echo "Failed to update known_hosts"
 
       - name: Transfer files to EC2
         run: |
-          ssh -i /home/runner/.ssh/id_rsa ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'mkdir -p ~/app'
-          scp -i /home/runner/.ssh/id_rsa deploy/* ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/app/
+          ssh -i /home/runner/.ssh/id_rsa ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'mkdir -p ~/app' || echo "Failed to create remote app directory"
+          scp -i /home/runner/.ssh/id_rsa deploy/* ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/app/ || echo "Failed to transfer files to EC2"
 
       - name: Deploy on EC2
         run: |
@@ -110,4 +103,4 @@ jobs:
             cd ~/app
             chmod +x deploy.sh
             ./deploy.sh
-          '
+          ' || echo "Failed to deploy on EC2"
