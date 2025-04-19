@@ -17,8 +17,26 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582
+
+      - name: Debug directory structure
+        run: |
+          pwd
+          ls -la
+          ls -la task
+          ls -la task/taskapp || echo "task/taskapp directory not found"
+          find . -name gradlew
 
       - name: Grant execute permission for gradlew
         run: chmod +x task/taskapp/gradlew
