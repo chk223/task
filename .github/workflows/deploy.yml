@@ -20,32 +20,26 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582
 
+      - name: Grant execute permission for gradlew
+        run: chmod +x task/taskapp/gradlew
+
       - name: Build with Gradle
+        working-directory: task/taskapp
         run: ./gradlew clean build -x test
 
       - name: Prepare deployment package
         run: |
-          # 배포할 JAR 파일 준비
           mkdir -p deploy
-          cp build/libs/*.jar deploy/app.jar
-          cp Dockerfile deploy/
-          cp docker-compose.yml deploy/
-          
-          # 배포 스크립트 생성
+          cp task/taskapp/build/libs/*.jar deploy/app.jar
+          cp task/taskapp/Dockerfile deploy/
+          cp task/taskapp/docker-compose.yml deploy/
           cat > deploy/deploy.sh << 'EOL'
           #!/bin/bash
           set -e
-          
-          # 이전 컨테이너 정리
           docker-compose down || true
-          
-          # 새 이미지 빌드 및 실행
           docker-compose up --build -d
-          
-          # 로그 출력 (선택 사항)
           docker-compose logs -f --tail=100
           EOL
-          
           chmod +x deploy/deploy.sh
 
       - name: Upload deployment package
@@ -73,10 +67,7 @@ jobs:
 
       - name: Transfer files to EC2
         run: |
-          # 애플리케이션 디렉토리 생성
           ssh -i ~/.ssh/id_rsa ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'mkdir -p ~/app'
-          
-          # 파일 전송
           scp -i ~/.ssh/id_rsa * ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/app/
 
       - name: Deploy on EC2
