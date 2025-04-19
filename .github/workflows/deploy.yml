@@ -43,12 +43,21 @@ jobs:
 
       - name: Build with Gradle
         working-directory: taskapp
-        run: ./gradlew clean build -x test
+        run: |
+          ./gradlew clean build -x test --stacktrace
+          ls -la build/libs/ || echo "build/libs directory not found"
+
+      - name: Debug build output
+        run: |
+          ls -la taskapp || echo "taskapp directory not found"
+          ls -la taskapp/build || echo "build directory not found"
+          ls -la taskapp/build/libs || echo "libs directory not found"
+          find taskapp -name "*.jar"
 
       - name: Prepare deployment package
         run: |
           mkdir -p deploy
-          cp taskapp/build/libs/*.jar deploy/app.jar
+          cp taskapp/build/libs/*.jar deploy/app.jar || echo "No JAR file found in taskapp/build/libs/"
           cp Dockerfile deploy/
           cp docker-compose.yml deploy/
           cat > deploy/deploy.sh << 'EOL'
