@@ -34,23 +34,23 @@ jobs:
         run: |
           pwd
           ls -la
-          ls -la task
-          ls -la task/taskapp || echo "task/taskapp directory not found"
+          ls -la taskapp || echo "taskapp directory not found"
           find . -name gradlew
+          if [ -f "taskapp/gradlew" ]; then echo "gradlew found"; else echo "gradlew not found"; fi
 
       - name: Grant execute permission for gradlew
-        run: chmod +x task/taskapp/gradlew
+        run: chmod +x taskapp/gradlew
 
       - name: Build with Gradle
-        working-directory: task/taskapp
+        working-directory: taskapp
         run: ./gradlew clean build -x test
 
       - name: Prepare deployment package
         run: |
           mkdir -p deploy
-          cp task/taskapp/build/libs/*.jar deploy/app.jar
-          cp task/taskapp/Dockerfile deploy/
-          cp task/taskapp/docker-compose.yml deploy/
+          cp taskapp/build/libs/*.jar deploy/app.jar
+          cp Dockerfile deploy/
+          cp docker-compose.yml deploy/
           cat > deploy/deploy.sh << 'EOL'
           #!/bin/bash
           set -e
