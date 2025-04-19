@@ -1,0 +1,6 @@
+spring:
+  application:
+    name:
+      task
+jwt:
+  secret: NDkxOWJkYzRmNTU3N2RjMGMyZDFlZmM5NDMxODk3ZTUxYjdkZDNkOGZmNzU2YTJiMmQ0ZmNlNzVmYzE1MTRhZA

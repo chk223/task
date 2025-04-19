@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  spring-app:
+    build:
+      context: taskapp
+      dockerfile: Dockerfile
+    container_name: spring-app
+    ports:
+      - "8080:8080"
+    restart: always
+    environment:
+      ##환경변수
+      - SPRING_PROFILES_ACTIVE=prod
+    volumes:
+      - ./logs:/app/logs
