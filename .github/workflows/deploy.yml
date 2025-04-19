@@ -45,7 +45,9 @@ jobs:
         working-directory: taskapp
         run: |
           ./gradlew clean build -x test --stacktrace
-          ls -la build/libs/ || echo "build/libs directory not found"
+          ls -la build || echo "build directory not found"
+          ls -la build/libs || echo "libs directory not found"
+          find . -name "*.jar"
 
       - name: Debug build output
         run: |
@@ -84,22 +86,27 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: deploy-package
+          path: ./deploy
 
       - name: Set up SSH key
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+          pwd
+          whoami
+          echo "Home directory: $HOME"
+          mkdir -p /home/runner/.ssh || echo "Failed to create /home/runner/.ssh"
+          ls -la /home/runner/.ssh || echo "Failed to list /home/runner/.ssh"
+          echo "${{ secrets.EC2_SSH_KEY }}" > /home/runner/.ssh/id_rsa || echo "Failed to write SSH key"
+          chmod 600 /home/runner/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> /home/runner/.ssh/known_hosts
 
       - name: Transfer files to EC2
         run: |
-          ssh -i ~/.ssh/id_rsa ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'mkdir -p ~/app'
-          scp -i ~/.ssh/id_rsa * ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/app/
+          ssh -i /home/runner/.ssh/id_rsa ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'mkdir -p ~/app'
+          scp -i /home/runner/.ssh/id_rsa deploy/* ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/app/
 
       - name: Deploy on EC2
         run: |
-          ssh -i ~/.ssh/id_rsa ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} '
+          ssh -i /home/runner/.ssh/id_rsa ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} '
             cd ~/app
             chmod +x deploy.sh
             ./deploy.sh
